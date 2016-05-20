@@ -61,9 +61,9 @@ public class Peer implements Runnable {
 		byte[] guid = getNode(key);
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":node:"
-					+ Base64.getEncoder().encodeToString(guid) + ":Q:" + Base64.getEncoder().encodeToString(key)
-					+ ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#node#"
+					+ Base64.getEncoder().encodeToString(guid) + "#Q#" + Base64.getEncoder().encodeToString(key)
+					+ "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 			getNodeSem.acquire();
 			guid = getNode;
@@ -73,8 +73,8 @@ public class Peer implements Runnable {
 		}
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":put:" + Base64.getEncoder().encodeToString(guid)
-					+ ":" + Base64.getEncoder().encodeToString(key) + ":" + value + ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#put#" + Base64.getEncoder().encodeToString(guid)
+					+ "#" + Base64.getEncoder().encodeToString(key) + "#" + value + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -90,9 +90,9 @@ public class Peer implements Runnable {
 		byte[] guid = getNode(key);
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":node:"
-					+ Base64.getEncoder().encodeToString(guid) + ":Q:" + Base64.getEncoder().encodeToString(key)
-					+ ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#node#"
+					+ Base64.getEncoder().encodeToString(guid) + "#Q#" + Base64.getEncoder().encodeToString(key)
+					+ "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 			getNodeSem.acquire();
 			guid = getNode;
@@ -102,8 +102,8 @@ public class Peer implements Runnable {
 		}
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":get:" + Base64.getEncoder().encodeToString(guid)
-					+ ":Q:" + Base64.getEncoder().encodeToString(key) + ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#get#" + Base64.getEncoder().encodeToString(guid)
+					+ "#Q#" + Base64.getEncoder().encodeToString(key) + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 			getValueSem.acquire();
 			value = getValue;
@@ -199,7 +199,7 @@ public class Peer implements Runnable {
 		byte[] prevNode = myGuid;
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":hi" + ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#hi" + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -213,8 +213,8 @@ public class Peer implements Runnable {
 
 			try {
 				socket.receive(recv);
-				String cmd[] = (new String(recv.getData())).split(":");
-				// [guid_sender]:[command]:[guid_reciver]:[arguments:...]:end
+				String cmd[] = (new String(recv.getData())).split("#");
+				// [guid_sender]#[command]#[guid_reciver]#[arguments:...]#end
 
 				if (cmd.length < 2) {
 					continue;
@@ -227,14 +227,14 @@ public class Peer implements Runnable {
 					}
 					System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets hi from " + cmd[0]);
 					putIntoBucket(Base64.getDecoder().decode(cmd[0]));
-					String msg = Base64.getEncoder().encodeToString(myGuid) + ":sup" + ":end";
+					String msg = Base64.getEncoder().encodeToString(myGuid) + "#sup" + "#end";
 					socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 					for (Map.Entry<String, String> entry : hashTable.entrySet()) {
 						byte[] key = Base64.getDecoder().decode(entry.getKey());
 						if (distance(myGuid, key) <= distance(Base64.getDecoder().decode(cmd[0]), key)) {
 							try {
-								msg = Base64.getEncoder().encodeToString(myGuid) + ":put:" + cmd[0] + ":"
-										+ entry.getKey() + ":" + entry.getValue() + ":end";
+								msg = Base64.getEncoder().encodeToString(myGuid) + "#put#" + cmd[0] + "#"
+										+ entry.getKey() + "#" + entry.getValue() + "#end";
 								socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 							} catch (IOException e) {
 								e.printStackTrace();
@@ -279,8 +279,8 @@ public class Peer implements Runnable {
 							value = "";
 						}
 						try {
-							msg = Base64.getEncoder().encodeToString(myGuid) + ":get:" + cmd[0] + ":A:" + value
-									+ ":end";
+							msg = Base64.getEncoder().encodeToString(myGuid) + "#get#" + cmd[0] + "#A#" + value
+									+ "#end";
 							socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -308,8 +308,8 @@ public class Peer implements Runnable {
 						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for node");
 						byte[] node = getNode(Base64.getDecoder().decode(cmd[4]));
 						try {
-							msg = Base64.getEncoder().encodeToString(myGuid) + ":node:" + cmd[0] + ":A:" + cmd[4] + ":"
-									+ Base64.getEncoder().encodeToString(node) + ":end";
+							msg = Base64.getEncoder().encodeToString(myGuid) + "#node#" + cmd[0] + "#A#" + cmd[4] + "#"
+									+ Base64.getEncoder().encodeToString(node) + "#end";
 							socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -334,8 +334,8 @@ public class Peer implements Runnable {
 						getNode = Base64.getDecoder().decode(cmd[5]);
 
 						try {
-							msg = Base64.getEncoder().encodeToString(myGuid) + ":node:" + cmd[5] + ":Q:" + cmd[4]
-									+ ":end";
+							msg = Base64.getEncoder().encodeToString(myGuid) + "#node#" + cmd[5] + "#Q#" + cmd[4]
+									+ "#end";
 							socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -358,7 +358,7 @@ public class Peer implements Runnable {
 		}
 
 		try {
-			String msg = Base64.getEncoder().encodeToString(myGuid) + ":bye" + ":end";
+			String msg = Base64.getEncoder().encodeToString(myGuid) + "#bye" + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 		} catch (IOException e) {
 			e.printStackTrace();

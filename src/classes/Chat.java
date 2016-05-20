@@ -10,8 +10,8 @@ import java.util.Base64;
 
 public class Chat {
 
-	static String GROUP = "228.5.6.7";
-	static Integer PORT = 6789;
+	static String GROUP = "FF0E::FE";
+	static Integer PORT = 65432;
 
 	public static void main(String[] args) {
 
