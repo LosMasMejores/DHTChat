@@ -315,7 +315,7 @@ public class Peer implements Runnable {
 					if (debug)
 						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets hi from " + cmd[0]);
 					putIntoBucket(Base64.getDecoder().decode(cmd[0]));
-					String msg = Base64.getEncoder().encodeToString(myGuid) + "#sup" + "#end";
+					String msg = Base64.getEncoder().encodeToString(myGuid) + "#sup#" + cmd[0] + "#end";
 					socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 					for (Map.Entry<String, String> entry : hashTable.entrySet()) {
 						byte[] key = Base64.getDecoder().decode(entry.getKey());
@@ -334,6 +334,9 @@ public class Peer implements Runnable {
 				// Recibir mensaje de actualizacion
 				case "sup":
 					if (Arrays.equals(Base64.getDecoder().decode(cmd[0]), myGuid)) {
+						break;
+					}
+					if (!Arrays.equals(Base64.getDecoder().decode(cmd[2]), myGuid)) {
 						break;
 					}
 					if (debug)
