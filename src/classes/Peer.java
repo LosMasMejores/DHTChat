@@ -56,6 +56,9 @@ public class Peer implements Runnable {
 		try {
 			this.group = InetAddress.getByName(this.ip);
 			this.socket = new MulticastSocket(this.port);
+			/*
+			 * Descomentar para no recibir mensajes del loopback
+			 */
 			// this.socket.setLoopbackMode(true);
 			this.socket.joinGroup(this.group);
 			this.getNodeSem.acquire();
@@ -93,17 +96,24 @@ public class Peer implements Runnable {
 		}
 	}
 
+	/*
+	 * Metodo para alojar un valor en su nodo mas cercano
+	 */
 	public synchronized byte[] put(byte[] key, String value) {
 		if (debug)
 			System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start putting");
 
 		byte[] guid = getNode(key);
 
+		/*
+		 * Conseguimos el nodo mas cercano a la clave
+		 */
 		try {
 			String msg = Base64.getEncoder().encodeToString(myGuid) + "#node#"
 					+ Base64.getEncoder().encodeToString(guid) + "#Q#" + Base64.getEncoder().encodeToString(key)
 					+ "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
+			// Esperar por respuesta
 			getNodeSem.acquire();
 			guid = getNode;
 			getNode = myGuid;
@@ -111,6 +121,9 @@ public class Peer implements Runnable {
 			e.printStackTrace();
 		}
 
+		/*
+		 * Enviamos al nodo el mensaje PUT
+		 */
 		try {
 			String msg = Base64.getEncoder().encodeToString(myGuid) + "#put#" + Base64.getEncoder().encodeToString(guid)
 					+ "#" + Base64.getEncoder().encodeToString(key) + "#" + value + "#end";
@@ -122,6 +135,9 @@ public class Peer implements Runnable {
 		return guid;
 	}
 
+	/*
+	 * Metodo para conseguir un valor de su nodo mas cercano
+	 */
 	public synchronized String get(byte[] key) {
 		if (debug)
 			System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start getting");
@@ -129,11 +145,15 @@ public class Peer implements Runnable {
 		String value = "";
 		byte[] guid = getNode(key);
 
+		/*
+		 * Conseguimos el nodo mas cercano a la clave
+		 */
 		try {
 			String msg = Base64.getEncoder().encodeToString(myGuid) + "#node#"
 					+ Base64.getEncoder().encodeToString(guid) + "#Q#" + Base64.getEncoder().encodeToString(key)
 					+ "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
+			// Esperar por respuesta
 			getNodeSem.acquire();
 			guid = getNode;
 			getNode = myGuid;
@@ -141,10 +161,14 @@ public class Peer implements Runnable {
 			e.printStackTrace();
 		}
 
+		/*
+		 * Enviamos al nodo el mensaje GET
+		 */
 		try {
 			String msg = Base64.getEncoder().encodeToString(myGuid) + "#get#" + Base64.getEncoder().encodeToString(guid)
 					+ "#Q#" + Base64.getEncoder().encodeToString(key) + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
+			// Esperar por respuesta
 			getValueSem.acquire();
 			value = getValue;
 		} catch (IOException | InterruptedException e) {
@@ -154,6 +178,9 @@ public class Peer implements Runnable {
 		return value;
 	}
 
+	/*
+	 * Metodo para calcular la distancia a una clave
+	 */
 	private int distance(byte[] key, byte[] guid) {
 		int d = -1;
 
@@ -161,6 +188,7 @@ public class Peer implements Runnable {
 			return d;
 		}
 
+		// Pasar de byte a bit
 		BitSet keyBit = BitSet.valueOf(key);
 		BitSet guidBit = BitSet.valueOf(guid);
 
@@ -173,6 +201,9 @@ public class Peer implements Runnable {
 		return d;
 	}
 
+	/*
+	 * Metodo para resumir un valor
+	 */
 	public static byte[] sha1(String value) {
 		byte[] key = null;
 
@@ -187,6 +218,9 @@ public class Peer implements Runnable {
 		return key;
 	}
 
+	/*
+	 * Metodo para conseguir el nodo mas cercano a una clave
+	 */
 	private byte[] getNode(byte[] key) {
 		byte[] guid = null;
 		int d = distance(key, myGuid);
@@ -206,6 +240,9 @@ public class Peer implements Runnable {
 		return guid;
 	}
 
+	/*
+	 * Metodo para poner en el kbucket un nodo
+	 */
 	private void putIntoBucket(byte[] guid) {
 		int d = distance(guid, myGuid);
 
@@ -225,6 +262,9 @@ public class Peer implements Runnable {
 		return;
 	}
 
+	/*
+	 * Metodo para quitar del kbucket un nodo
+	 */
 	private void getOutOfBucket(byte[] guid) {
 		int d = distance(guid, myGuid);
 
@@ -238,6 +278,9 @@ public class Peer implements Runnable {
 		return;
 	}
 
+	/*
+	 * Metodo principal de escucha en el grupo multicast
+	 */
 	public void run() {
 		byte[] prevNode = myGuid;
 
@@ -264,6 +307,7 @@ public class Peer implements Runnable {
 				}
 
 				switch (cmd[1]) {
+				// Recibir mensaje de saludo
 				case "hi":
 					if (Arrays.equals(Base64.getDecoder().decode(cmd[0]), myGuid)) {
 						break;
@@ -287,6 +331,7 @@ public class Peer implements Runnable {
 					}
 					break;
 
+				// Recibir mensaje de actualizacion
 				case "sup":
 					if (Arrays.equals(Base64.getDecoder().decode(cmd[0]), myGuid)) {
 						break;
@@ -296,12 +341,14 @@ public class Peer implements Runnable {
 					putIntoBucket(Base64.getDecoder().decode(cmd[0]));
 					break;
 
+				// Recibir mensaje de despido
 				case "bye":
 					if (debug)
 						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets bye from " + cmd[0]);
 					getOutOfBucket(Base64.getDecoder().decode(cmd[0]));
 					break;
 
+				// Recibir mensaje de put
 				case "put":
 					if (!Arrays.equals(Base64.getDecoder().decode(cmd[2]), myGuid)) {
 						break;
@@ -313,12 +360,14 @@ public class Peer implements Runnable {
 								+ hashTable.get(cmd[3]) + " in " + cmd[3]);
 					break;
 
+				// Recibir mensaje de get
 				case "get":
 					if (!Arrays.equals(Base64.getDecoder().decode(cmd[2]), myGuid)) {
 						break;
 					}
 
 					switch (cmd[3]) {
+					// si nos preguntan...
 					case "Q":
 						if (debug)
 							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for value");
@@ -334,7 +383,7 @@ public class Peer implements Runnable {
 							e.printStackTrace();
 						}
 						break;
-
+					// si nos contestan...
 					case "A":
 						if (debug)
 							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the value");
@@ -348,11 +397,13 @@ public class Peer implements Runnable {
 
 					break;
 
+				// Recibir mensaje de node(nodo mas cercano)
 				case "node":
 					if (!Arrays.equals(Base64.getDecoder().decode(cmd[2]), myGuid)) {
 						break;
 					}
 					switch (cmd[3]) {
+					// si nos preguntan...
 					case "Q":
 						if (debug)
 							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for node");
@@ -366,14 +417,17 @@ public class Peer implements Runnable {
 						}
 						break;
 
+					// si nos contestan...
 					case "A":
 						if (debug)
 							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the node");
+						// Dos veces la misma respuesta
 						if (Arrays.equals(getNode, Base64.getDecoder().decode(cmd[5]))) {
 							getNodeSem.release();
 							break;
 						}
 
+						// Problema del bucle
 						if (Arrays.equals(prevNode, Base64.getDecoder().decode(cmd[5]))) {
 							getNode = prevNode;
 							prevNode = myGuid;
@@ -409,6 +463,7 @@ public class Peer implements Runnable {
 		}
 
 		try {
+			// Nos despedimos
 			String msg = Base64.getEncoder().encodeToString(myGuid) + "#bye" + "#end";
 			socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
 		} catch (IOException e) {
