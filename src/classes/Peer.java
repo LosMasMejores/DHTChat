@@ -150,7 +150,7 @@ public class Peer implements Runnable {
 		byte[] guid = null;
 		int d = distance(key, myGuid);
 
-		while (guid == null || d < 160) {
+		while (guid == null && d < 160) {
 			guid = kBucket[d][0];
 			if (guid == null) {
 				guid = kBucket[d][1];
