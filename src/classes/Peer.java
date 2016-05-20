@@ -36,7 +36,6 @@ public class Peer implements Runnable {
 		this.getNode = sha1(identificador);
 		this.hashTable = new HashMap<>();
 		this.kBucket = new byte[bucketLength][k][];
-		this.kBucket[bucketLength - 1][0] = this.myGuid;
 		this.getValue = "";
 		this.ip = ip;
 		this.port = port;
@@ -123,10 +122,9 @@ public class Peer implements Runnable {
 
 		BitSet keyBit = BitSet.valueOf(key);
 		BitSet guidBit = BitSet.valueOf(guid);
-
-		for (int i = 0; i < 160; i++) {
-			d++;
-			if (keyBit.get(i) != guidBit.get(i)) {
+		
+		for (d = 0; d < 160; d++) {
+			if (keyBit.get(d) != guidBit.get(d)) {
 				break;
 			}
 		}
@@ -152,12 +150,16 @@ public class Peer implements Runnable {
 		byte[] guid = null;
 		int d = distance(key, myGuid);
 
-		while (guid == null) {
+		while (guid == null || d < 160) {
 			guid = kBucket[d][0];
 			if (guid == null) {
 				guid = kBucket[d][1];
 			}
 			d++;
+		}
+		
+		if (d == 160) {
+			return myGuid;
 		}
 
 		return guid;
