@@ -21,9 +21,6 @@ public class Chat {
 		Peer peer;
 
 		switch (args.length) {
-		case 0:
-			System.out.println("Uso: java -jar DHTChat.jar \"user\" [debug]");
-			return;
 		case 1:
 			user = args[0];
 			peer = new Peer(user, GROUP, PORT);
@@ -39,11 +36,13 @@ public class Chat {
 				return;
 			}
 		default:
+			System.out.println("Uso: java -jar DHTChat.jar \"user\" [debug]");
 			return;
 
 		}
 
 		try {
+			// Dar un tiempo para actualizarse
 			Thread.sleep(1000);
 			System.out.println("Nombre de la sala?: ");
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -96,6 +95,9 @@ public class Chat {
 		}
 	}
 
+	/*
+	 * Metodo que controla el chat Lo ideal seria poder lanzar mas de uno
+	 */
 	public static void lanzarChat(byte[] hash, String user, InetAddress group, int port, MulticastSocket socket) {
 		try {
 			socket.joinGroup(group);
@@ -106,6 +108,9 @@ public class Chat {
 
 		System.out.println("Bienvenido al chat " + user);
 
+		/*
+		 * Hilo que se encarga de las respuestas
+		 */
 		new Thread(new Runnable() {
 			public void run() {
 				while (true) {
@@ -126,6 +131,9 @@ public class Chat {
 			}
 		}).start();
 
+		/*
+		 * Hilo que se encarga de lo que escribimos
+		 */
 		new Thread(new Runnable() {
 			public void run() {
 				while (true) {
