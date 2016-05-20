@@ -15,21 +15,32 @@ import java.util.concurrent.Semaphore;
 
 public class Peer implements Runnable {
 	static final int k = 2;
-	static final int alpha = 3;
 	static final int bucketLength = 160;
 
+	/*
+	 * Variable para DHT
+	 */
 	byte[] myGuid;
 	byte[] getNode;
 	Map<String, String> hashTable;
 	byte[][][] kBucket;
 	String getValue;
 
+	/*
+	 * Variables para socket multicast
+	 */
 	String ip;
 	int port;
 	InetAddress group;
 	MulticastSocket socket;
+
+	/*
+	 * Variables para control de acceso
+	 */
 	Semaphore getNodeSem;
 	Semaphore getValueSem;
+
+	boolean debug = false;
 
 	public Peer(String identificador, String ip, int port) {
 		this.myGuid = sha1(identificador);
@@ -54,8 +65,37 @@ public class Peer implements Runnable {
 		}
 	}
 
+	public Peer(String identificador, String ip, int port, boolean debug) {
+		this.myGuid = sha1(identificador);
+		this.getNode = sha1(identificador);
+		this.hashTable = new HashMap<>();
+		this.kBucket = new byte[bucketLength][k][];
+		this.getValue = "";
+		this.ip = ip;
+		this.port = port;
+		this.getNodeSem = new Semaphore(1, true);
+		this.getValueSem = new Semaphore(1, true);
+
+		this.debug = debug;
+
+		try {
+			this.group = InetAddress.getByName(this.ip);
+			this.socket = new MulticastSocket(this.port);
+			/*
+			 * Descomentar para no recibir mensajes del loopback
+			 */
+			// this.socket.setLoopbackMode(true);
+			this.socket.joinGroup(this.group);
+			this.getNodeSem.acquire();
+			this.getValueSem.acquire();
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public synchronized byte[] put(byte[] key, String value) {
-		System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start putting");
+		if (debug)
+			System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start putting");
 
 		byte[] guid = getNode(key);
 
@@ -83,7 +123,8 @@ public class Peer implements Runnable {
 	}
 
 	public synchronized String get(byte[] key) {
-		System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start getting");
+		if (debug)
+			System.out.println(Base64.getEncoder().encodeToString(myGuid) + " start getting");
 
 		String value = "";
 		byte[] guid = getNode(key);
@@ -122,7 +163,7 @@ public class Peer implements Runnable {
 
 		BitSet keyBit = BitSet.valueOf(key);
 		BitSet guidBit = BitSet.valueOf(guid);
-		
+
 		for (d = 0; d < 160; d++) {
 			if (keyBit.get(d) != guidBit.get(d)) {
 				break;
@@ -157,7 +198,7 @@ public class Peer implements Runnable {
 			}
 			d++;
 		}
-		
+
 		if (d == 160) {
 			return myGuid;
 		}
@@ -227,7 +268,8 @@ public class Peer implements Runnable {
 					if (Arrays.equals(Base64.getDecoder().decode(cmd[0]), myGuid)) {
 						break;
 					}
-					System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets hi from " + cmd[0]);
+					if (debug)
+						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets hi from " + cmd[0]);
 					putIntoBucket(Base64.getDecoder().decode(cmd[0]));
 					String msg = Base64.getEncoder().encodeToString(myGuid) + "#sup" + "#end";
 					socket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, group, port));
@@ -249,12 +291,14 @@ public class Peer implements Runnable {
 					if (Arrays.equals(Base64.getDecoder().decode(cmd[0]), myGuid)) {
 						break;
 					}
-					System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets sup from " + cmd[0]);
+					if (debug)
+						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets sup from " + cmd[0]);
 					putIntoBucket(Base64.getDecoder().decode(cmd[0]));
 					break;
 
 				case "bye":
-					System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets bye from " + cmd[0]);
+					if (debug)
+						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " gets bye from " + cmd[0]);
 					getOutOfBucket(Base64.getDecoder().decode(cmd[0]));
 					break;
 
@@ -264,8 +308,9 @@ public class Peer implements Runnable {
 					}
 
 					hashTable.put(cmd[3], cmd[4]);
-					System.out.println(Base64.getEncoder().encodeToString(myGuid) + " is putting "
-							+ hashTable.get(cmd[3]) + " in " + cmd[3]);
+					if (debug)
+						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " is putting "
+								+ hashTable.get(cmd[3]) + " in " + cmd[3]);
 					break;
 
 				case "get":
@@ -275,7 +320,8 @@ public class Peer implements Runnable {
 
 					switch (cmd[3]) {
 					case "Q":
-						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for value");
+						if (debug)
+							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for value");
 						String value = hashTable.get(cmd[4]);
 						if (value == null) {
 							value = "";
@@ -290,7 +336,8 @@ public class Peer implements Runnable {
 						break;
 
 					case "A":
-						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the value");
+						if (debug)
+							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the value");
 						getValue = cmd[4];
 						getValueSem.release();
 						break;
@@ -307,7 +354,8 @@ public class Peer implements Runnable {
 					}
 					switch (cmd[3]) {
 					case "Q":
-						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for node");
+						if (debug)
+							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " asked for node");
 						byte[] node = getNode(Base64.getDecoder().decode(cmd[4]));
 						try {
 							msg = Base64.getEncoder().encodeToString(myGuid) + "#node#" + cmd[0] + "#A#" + cmd[4] + "#"
@@ -319,7 +367,8 @@ public class Peer implements Runnable {
 						break;
 
 					case "A":
-						System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the node");
+						if (debug)
+							System.out.println(Base64.getEncoder().encodeToString(myGuid) + " get the node");
 						if (Arrays.equals(getNode, Base64.getDecoder().decode(cmd[5]))) {
 							getNodeSem.release();
 							break;

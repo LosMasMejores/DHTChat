@@ -15,16 +15,33 @@ public class Chat {
 
 	public static void main(String[] args) {
 
-		if (args.length != 1) {
-			return;
-		}
-
-		String user = args[0];
+		String user;
 		String pwd = "";
 		String sala = "";
+		Peer peer;
 
-		Peer peer = new Peer(user, GROUP, PORT);
-		new Thread(peer).start();
+		switch (args.length) {
+		case 0:
+			System.out.println("Uso: java -jar DHTChat.jar \"user\" [debug]");
+			return;
+		case 1:
+			user = args[0];
+			peer = new Peer(user, GROUP, PORT);
+			new Thread(peer).start();
+			break;
+		case 2:
+			if (args[1].equalsIgnoreCase("DEBUG")) {
+				user = args[0];
+				peer = new Peer(user, GROUP, PORT, true);
+				new Thread(peer).start();
+				break;
+			} else {
+				return;
+			}
+		default:
+			return;
+
+		}
 
 		try {
 			Thread.sleep(1000);
@@ -50,7 +67,7 @@ public class Chat {
 				System.out.println("Introduzca PUERTO chat: ");
 				String port = br.readLine();
 				MulticastSocket socket = new MulticastSocket(Integer.parseInt(port));
-				
+
 				if (ip.contains(GROUP) && port.contains(PORT.toString())) {
 					socket.close();
 					return;
